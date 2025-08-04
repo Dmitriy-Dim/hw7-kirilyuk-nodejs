@@ -24,8 +24,11 @@ export function updatePost(req:Request, res:Response) {
 
     service.getUserById(post.userId);
 
-    const result = postService.updatePost(post);
-    res.send("Post successfully updated");
+    postService.updatePost(post);
+    res.json({
+        message: "Post successfully updated",
+        post: post
+    });
 }
 
 export function removePost(req:Request, res:Response) {
@@ -49,11 +52,18 @@ export function getAllPosts() {
 }
 
 export function addPost(req:Request, res:Response) {
-    console.log(req.body);
+    console.log("Request body:", req.body);
     const post = req.body as Post;
+
+    if (!post || !post.id || !post.userId) {
+        throw new HttpError(400, 'Missing required fields: id, userId');
+    }
 
     service.getUserById(post.userId);
 
     postService.addPost(post);
-    res.status(201).send("Post was successfully added");
+    res.status(201).json({
+        message: "Post was successfully added",
+        post: post
+    });
 }

@@ -7,7 +7,6 @@ import {UserFilePersistenceService} from "./services/UserFilePersistenceService.
 import {myLogger} from "./utils/logger.ts";
 import {PostServiceEmbeddedImpl} from "./services/PostServiceEmbeddedImpl.ts";
 import {HttpError} from "./errorHandler/HttpError.js";
-import { ValidationError } from 'express-validator';
 
 export const service: UserService = new UserServiceEmbeddedImpl();
 export const userController = new UserController(service);
@@ -47,7 +46,7 @@ export const launchServer = () => {
             });
         }
 
-        if (err instanceof SyntaxError && 'body' in err) {
+        if (err && 'body' in err) {
             return res.status(400).json({
                 error: 'Invalid JSON format',
                 status: 400
@@ -65,7 +64,6 @@ export const launchServer = () => {
 
     app.listen(3005, () => console.log("Server runs at http://localhost:3005"));
 
-    // Graceful shutdown
     process.on('SIGINT', () => {
         (service as unknown as UserFilePersistenceService).saveDataToFile().then(() => {
             myLogger.log("Data saved");

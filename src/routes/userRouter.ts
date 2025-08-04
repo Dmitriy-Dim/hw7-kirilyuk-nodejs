@@ -1,6 +1,6 @@
 import express from "express";
 import {userController} from "../server.ts";
-import {validateUserId} from "../validation/userValidation.ts";
+import {validateUserId} from "../validation/userValidation.js";
 import asyncHandler from "express-async-handler";
 import {handleValidationErrors} from "../validation/validationMiddleware.js";
 
@@ -26,8 +26,8 @@ userRouter.get('/',
 
 // POST /api/users - создать пользователя
 userRouter.post('/',
-    asyncHandler(async (req, res) => {
-        await userController.addUser(req, res);
+    asyncHandler((req, res) => {
+        userController.addUser(req, res);
     })
 );
 
@@ -42,7 +42,7 @@ userRouter.delete('/',
 
 // PUT /api/users - обновить пользователя
 userRouter.put('/',
-    asyncHandler(async (req, res) => {
-        await userController.updateUser(req, res);
+    asyncHandler((req, res) => {
+        userController.updateUser(req, res);
     })
 );

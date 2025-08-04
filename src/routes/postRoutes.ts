@@ -6,7 +6,9 @@ import {myLogger} from "../utils/logger.ts";
 import asyncHandler from "express-async-handler";
 import {PostDtoSchema} from "../joiSchemas/postShemas.js";
 import {HttpError} from "../errorHandler/HttpError.js";
-import {validateUserIdParam, validatePostId, validateUserName} from "../validation/userValidation.js";
+import {
+    validateUserIdParam, validatePostId, validateUserName
+} from "../validation/userValidation.js";
 import {handleValidationErrors} from "../validation/validationMiddleware.js";
 
 export const postRouter = express.Router();
@@ -42,14 +44,22 @@ postRouter.delete('/post/:id',
 // PUT /api/posts - обновить пост
 postRouter.put('/',
     asyncHandler(async (req:Request, res:Response) => {
+        console.log("PUT request body:", req.body);
+
         const postDto = req.body;
         const {error} = PostDtoSchema.validate(postDto);
-        if(error) throw new HttpError(400, error.message);
+        if(error) {
+            console.log("Joi validation error:", error.message);
+            throw new HttpError(400, `Validation error: ${error.message}`);
+        }
 
         const post: Post | null = convertPostDto(postDto);
-        if(!post) throw new HttpError(400, 'Invalid post data');
+        if(!post) {
+            console.log("Post conversion failed");
+            throw new HttpError(400, 'Invalid post data format');
+        }
 
-        req.body = post as Post;
+        req.body = post;
         controller.updatePost(req, res);
     })
 );
@@ -57,14 +67,23 @@ postRouter.put('/',
 // POST /api/posts - создать новый пост
 postRouter.post('/',
     asyncHandler(async(req:Request, res:Response) => {
+        console.log("POST request body:", req.body);
+
         const postDto = req.body;
+
         const {error} = PostDtoSchema.validate(postDto);
-        if(error) throw new HttpError(400, error.message);
+        if(error) {
+            console.log("Joi validation error:", error.message);
+            throw new HttpError(400, `Validation error: ${error.message}`);
+        }
 
         const post: Post | null = convertPostDto(postDto);
-        if (!post) throw new HttpError(400, 'Invalid post data');
+        if (!post) {
+            console.log("Post conversion failed for:", postDto);
+            throw new HttpError(400, 'Invalid post data format');
+        }
 
-        req.body = post as Post;
+        req.body = post;
         controller.addPost(req, res);
     })
 );
@@ -73,7 +92,7 @@ postRouter.post('/',
 postRouter.get('/',
     asyncHandler((req:Request, res:Response) => {
         const result: Post[] = controller.getAllPosts();
-        res.type("application/json").send(JSON.stringify(result));
+        res.json(result);
     })
 );
 

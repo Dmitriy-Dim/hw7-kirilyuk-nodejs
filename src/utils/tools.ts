@@ -1,29 +1,7 @@
-import {IncomingMessage} from "node:http";
 import {Post} from "../model/postTypes.ts";
-import {HttpError} from "../errorHandler/HttpError.js";
 
 export const sayHi = (name: string): void => {
     console.log(`Hello ${name}`);
-}
-
-export async function parseBody(req: IncomingMessage) {
-    return new Promise((resolve, reject) => {
-        let body = "";
-        req.on('data', (chunk) => {
-            body += chunk.toString();
-        });
-        req.on('end', () => {
-            if (!body.trim()) {
-                reject(new HttpError(400, 'Request body is empty'));
-                return;
-            }
-            try {
-                resolve(JSON.parse(body));
-            } catch (e) {
-                reject(new HttpError(400, 'Invalid JSON format'));
-            }
-        });
-    });
 }
 
 export const isUserType = (obj: any): boolean => {
@@ -31,16 +9,38 @@ export const isUserType = (obj: any): boolean => {
         typeof obj === 'object' &&
         obj !== null &&
         typeof obj.id === 'number' &&
-        typeof obj.userName === 'string'
+        typeof obj.userName === 'string' &&
+        obj.userName.trim().length > 0
     );
 }
 
-export function convertPostDto(postDto: unknown) {
-    const post = postDto as Post;
-    if (!post.id || !post.userId) {
+export function convertPostDto(postDto: unknown): Post | null {
+    console.log("Converting postDto:", postDto);
+
+    if (!postDto || typeof postDto !== 'object') {
+        console.log("Invalid postDto: not an object");
         return null;
     }
-    if (!post.text) post.text = "Some text";
-    if (!post.title) post.title = "No title";
-    return post;
+
+    const post = postDto as any;
+
+    if (!post.id || !post.userId) {
+        console.log("Missing required fields:", { id: post.id, userId: post.userId });
+        return null;
+    }
+
+    const convertedPost: Post = {
+        id: Number(post.id),
+        userId: Number(post.userId),
+        title: post.title || "No title",
+        text: post.text || "Some text"
+    };
+
+    if (isNaN(convertedPost.id) || isNaN(convertedPost.userId)) {
+        console.log("Invalid number fields:", { id: convertedPost.id, userId: convertedPost.userId });
+        return null;
+    }
+
+    console.log("Converted post:", convertedPost);
+    return convertedPost;
 }
