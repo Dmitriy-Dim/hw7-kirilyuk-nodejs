@@ -1,74 +1,96 @@
 import express, {Request, Response, NextFunction} from "express";
 import * as controller from '../controllers/postController.js'
 import {Post} from "../model/postTypes.js";
-import {convertPostDto, parseBody} from "../utils/tools.ts";
+import {convertPostDto} from "../utils/tools.ts";
 import {myLogger} from "../utils/logger.ts";
 import asyncHandler from "express-async-handler";
 import {PostDtoSchema} from "../joiSchemas/postShemas.js";
 import {HttpError} from "../errorHandler/HttpError.js";
+import {validateUserIdParam, validatePostId, validateUserName} from "../validation/userValidation.js";
+import {handleValidationErrors} from "../validation/validationMiddleware.js";
 
 export const postRouter = express.Router();
 
 postRouter.use((req:Request, res:Response, next:NextFunction) => {
-    myLogger.log(`Request "api/posts${req.url}" was recieved`)
+    myLogger.log(`Request "api/posts${req.url}" was received`);
     next();
-})
+});
+
 postRouter.use((req:Request, res:Response, next:NextFunction) => {
-    myLogger.save(`Request "api/posts${req.url}" was recieved`)
+    myLogger.save(`Request "api/posts${req.url}" was received`);
     next();
-})
+});
 
-postRouter.get('/user/:userId', (req:Request, res:Response) => {
-    try {
-      controller.getUserPost(req, res);
-    } catch (e) {
-        res.status(400).send('Bad request')
-    }
+// GET /api/posts/user/:userId - получить посты пользователя по ID
+postRouter.get('/user/:userId',
+    validateUserIdParam,
+    handleValidationErrors,
+    asyncHandler((req:Request, res:Response) => {
+        controller.getUserPost(req, res);
+    })
+);
 
-})
+// DELETE /api/posts/post/:id - удалить пост по ID
+postRouter.delete('/post/:id',
+    validatePostId,
+    handleValidationErrors,
+    asyncHandler((req:Request, res:Response) => {
+        controller.removePost(req, res);
+    })
+);
 
-postRouter.delete('/post/:id', (req:Request, res:Response) => {
-    const id = req.params.id;
-    if(!id)
-        res.status(400).send('Bad request')
-    controller.removePost(req, res);
-    }
-)
-postRouter.put('/', async (req:Request, res:Response) => {
-    const postDto = req.body;
-    const post:Post|null = convertPostDto(postDto);
-    if(!post)
-        res.status(400).send('Bad request')
-    req.body = post as Post;
-     controller.updatePost(req, res);
-})
+// PUT /api/posts - обновить пост
+postRouter.put('/',
+    asyncHandler(async (req:Request, res:Response) => {
+        const postDto = req.body;
+        const {error} = PostDtoSchema.validate(postDto);
+        if(error) throw new HttpError(400, error.message);
 
-postRouter.post('/',  asyncHandler(async(req:Request, res:Response) => {
-    //const postDto = await parseBody(req);
-    const postDto = req.body;
-    const {error} = PostDtoSchema.validate(postDto);
-   if(error) throw new HttpError(400, error.message)
-    const post: Post | null = convertPostDto(postDto);
-    if (!post)
-        res.status(400).send('Bad request')
-    req.body = post as Post;
+        const post: Post | null = convertPostDto(postDto);
+        if(!post) throw new HttpError(400, 'Invalid post data');
+
+        req.body = post as Post;
+        controller.updatePost(req, res);
+    })
+);
+
+// POST /api/posts - создать новый пост
+postRouter.post('/',
+    asyncHandler(async(req:Request, res:Response) => {
+        const postDto = req.body;
+        const {error} = PostDtoSchema.validate(postDto);
+        if(error) throw new HttpError(400, error.message);
+
+        const post: Post | null = convertPostDto(postDto);
+        if (!post) throw new HttpError(400, 'Invalid post data');
+
+        req.body = post as Post;
         controller.addPost(req, res);
-}))
-postRouter.get('/',(req:Request, res:Response) => {
-    const result:Post[] = controller.getAllPosts();
-    res.type("application/json").send(JSON.stringify(result))
-})
-//http://localhost:3005/api/posts/post/2/user/5
-postRouter.get('/post/:id', asyncHandler((req:Request, res:Response) => {
-    const {id} = req.params;
-    if(!id)
-        throw new Error ('Post not found')
-    controller.getPostById(req, res);
-}))
+    })
+);
 
-postRouter.get('/user', (req:Request, res:Response) => {
-    const {userName} = req.query
-    if(!userName || typeof userName !== "string")
-        res.status(400).send(`Bad request: userName required`)
+// GET /api/posts - получить все посты
+postRouter.get('/',
+    asyncHandler((req:Request, res:Response) => {
+        const result: Post[] = controller.getAllPosts();
+        res.type("application/json").send(JSON.stringify(result));
+    })
+);
+
+// GET /api/posts/post/:id - получить пост по ID
+postRouter.get('/post/:id',
+    validatePostId,
+    handleValidationErrors,
+    asyncHandler((req:Request, res:Response) => {
+        controller.getPostById(req, res);
+    })
+);
+
+// GET /api/posts/user?userName=xxx - получить посты пользователя по имени
+postRouter.get('/user',
+    validateUserName,
+    handleValidationErrors,
+    asyncHandler((req:Request, res:Response) => {
         controller.getUserPostsByName(req, res);
-})
+    })
+);

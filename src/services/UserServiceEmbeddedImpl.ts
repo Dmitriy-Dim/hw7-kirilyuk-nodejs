@@ -3,18 +3,18 @@ import {User} from "../model/userTypes.ts";
 import {UserFilePersistenceService} from "./UserFilePersistenceService.ts";
 import fs from "fs";
 import {myLogger} from "../utils/logger.ts";
+import {HttpError} from "../errorHandler/HttpError.js";
 
-export  class UserServiceEmbeddedImpl implements UserService, UserFilePersistenceService{
+export class UserServiceEmbeddedImpl implements UserService, UserFilePersistenceService{
     private users: User[] = [];
     private rs = fs.createReadStream('data.txt',{encoding: "utf-8", highWaterMark:24})
 
     addUser(user: User): boolean {
-        if(this.users.findIndex((u:User) => u.id === user.id) === -1)
-        {
-            this.users.push(user);
-            return true;
+        if(this.users.findIndex((u:User) => u.id === user.id) !== -1) {
+            throw new HttpError(409, 'User already exists');
         }
-        return false;
+        this.users.push(user);
+        return true;
     }
 
     getAllUsers(): User[] {
@@ -22,14 +22,14 @@ export  class UserServiceEmbeddedImpl implements UserService, UserFilePersistenc
     }
 
     getUserById(id: number): User {
-       const user = this.users.find(item => item.id === id);
-       if(!user) throw "404";
+        const user = this.users.find(item => item.id === id);
+        if(!user) throw new HttpError(404, `User with id ${id} not found`);
         return user;
     }
 
     removeUser(id: number): User {
         const index = this.users.findIndex(item => item.id === id);
-        if(index === -1) throw "404";
+        if(index === -1) throw new HttpError(404, `User with id ${id} not found`);
         const removed = this.users[index];
         this.users.splice(index, 1);
         return removed;
@@ -37,7 +37,7 @@ export  class UserServiceEmbeddedImpl implements UserService, UserFilePersistenc
 
     updateUser(newUser: User): void {
         const index = this.users.findIndex(item => item.id === newUser.id);
-        if(index === -1) throw "404";
+        if(index === -1) throw new HttpError(404, `User with id ${newUser.id} not found`);
         this.users[index] = newUser;
     }
 
@@ -89,10 +89,10 @@ export  class UserServiceEmbeddedImpl implements UserService, UserFilePersistenc
             ws.write(data, (err) => {
                 if (err) {
                     myLogger.log("Write error: " + err.message);
-                    reject("Error writing to file");
+                    reject(new HttpError(500, "Error writing to file"));
                     return;
                 }
-                ws.end(); // Завершаем запись
+                ws.end();
             });
 
             ws.on('finish', () => {
@@ -103,7 +103,7 @@ export  class UserServiceEmbeddedImpl implements UserService, UserFilePersistenc
 
             ws.on('error', (err) => {
                 myLogger.log("Stream error: " + err.message);
-                reject("Stream error");
+                reject(new HttpError(500, "Stream error"));
             });
         });
     }

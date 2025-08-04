@@ -1,79 +1,59 @@
 import {Post} from "../model/postTypes.js";
 import {postService, service} from "../server.ts";
 import {Request,Response} from "express";
-
-
+import {HttpError} from "../errorHandler/HttpError.js";
 
 export function getUserPostsByName(req:Request, res:Response) {
-   const users = service.getAllUsers();
-   const user = users.find(item => item.userName === req.query.userName);
-   if(!user)
-       res.status(404).send(`User not found`);
-   else{
-       const result =  postService.getAllUserPosts(user!.id)
-       res.json(result)
-   }
+    const users = service.getAllUsers();
+    const user = users.find(item => item.userName === req.query.userName);
+    if(!user) throw new HttpError(404, `User with name ${req.query.userName} not found`);
 
+    const result = postService.getAllUserPosts(user.id);
+    res.json(result);
 }
 
-
 export function getUserPost(req:Request, res:Response) {
-    const uId= parseInt(req.params.userId);
-    if(!uId) throw new Error ("Bad user Id in request");
+    const uId = parseInt(req.params.userId);
+    if(!uId || isNaN(uId)) throw new HttpError(400, "Invalid user ID in request");
+
     res.json(postService.getAllUserPosts(uId));
 }
 
-
 export function updatePost(req:Request, res:Response) {
-   const post = req.body;
-    if(!service.getUserById(post.userId))
-        res.status(404).send("User not found")
-    const result = postService.updatePost(post);
-    if(result)
-        res.send("Post successfully updated")
-    else res.status(404).send("Post not found")
-}
+    const post = req.body;
 
+    service.getUserById(post.userId);
+
+    const result = postService.updatePost(post);
+    res.send("Post successfully updated");
+}
 
 export function removePost(req:Request, res:Response) {
     const postId = parseInt(req.params.id);
-    try {
-        const result = postService.removePost(postId);
-        res.json(result)
-    } catch (e) {
-        res.status(404).send(e)
-    }
-}
+    if(!postId || isNaN(postId)) throw new HttpError(400, "Invalid post ID in request");
 
+    const result = postService.removePost(postId);
+    res.json(result);
+}
 
 export function getPostById(req:Request, res:Response) {
     const postId = parseInt(req.params.id);
-    if(!postId) res.status(400).send("Bad ID in request")
- //   try{
-        res.json(postService.getPost(postId));
-    // } catch (e) {
-    //     res.status(404).send("Post not found")
-    // }
+    if(!postId || isNaN(postId)) throw new HttpError(400, "Invalid post ID in request");
 
+    const result = postService.getPost(postId);
+    res.json(result);
 }
-
 
 export function getAllPosts() {
     return postService.getAllPosts();
 }
 
-
-
 export function addPost(req:Request, res:Response) {
-    console.log(req.body)
+    console.log(req.body);
     const post = req.body as Post;
-    try {
-        const result = service.getUserById(post.userId)
-        postService.addPost(post)
-        res.status(201).send("Post was successfully added")
 
-    } catch (e) {
-        res.status(404).send("User not found")
-    }
+    service.getUserById(post.userId);
+
+    postService.addPost(post);
+    res.status(201).send("Post was successfully added");
 }
-
